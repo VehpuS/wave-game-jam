@@ -72,9 +72,9 @@ player_info = ImageInfo([45, 45], [90, 90], 35)
 player_thrust_info = ImageInfo([135, 45], [90, 90], 35)
 player_image = simplegui.load_image("https://fbcdn-sphotos-h-a.akamaihd.net/hphotos-ak-xpt1/v/t34.0-12/11774706_10153509316471660_768017570_n.jpg?oh=c3af29d78146812b95f2ba9ae7134823&oe=55B44727&__gda__=1437904140_342f1db1175515d46409a6e04683b6a2")
 
-wave_info = ImageInfo([45, 45], [569, 640], 35)
-wave_thrust_info = ImageInfo([56.9, 64.0], [569, 640], 35)
-wave_image = simplegui.load_image("httpshttps://fbcdn-sphotos-h-a.akamaihd.net/hphotos-ak-xpt1/v/t34.0-12/11721303_10153509324091660_1685531747_n.jpg?oh=08e5321b1ddca0ebe57510a4244ad6d8&oe=55B48B60&__gda__=1437884664_ca7c3995cf738af642d89a9b1924edab")
+wave_info = ImageInfo([45, 45], [90, 90], 35)
+wave_thrust_info = ImageInfo([45, 45], [90, 90], 35)
+wave_image = simplegui.load_image(r"https://openclipart.org/image/90px/svg_to_png/182008/Tiled%20Wave%20Pattern.png")
 
 # missile image - shot1.png, shot2.png, shot3.png
 # missile_info = ImageInfo([5,5], [10, 10], 3, 40)
