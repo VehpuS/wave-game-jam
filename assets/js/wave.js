@@ -341,7 +341,7 @@ Array.prototype.diff = function(array) {
 
         friction = 0.9;
 
-        speed = 1;
+        speed = 1.5;
 
 		Player.call(this, x, y, dx, dy, angle, surferInfo, surferThrustInfo, speed, friction, scale, sound, thrustsound, 'Up', 'Left', 'Right');
 
@@ -697,7 +697,7 @@ Array.prototype.diff = function(array) {
 })();
 
 var c = document.getElementById("gameCanvas");
-c.width = document.documentElement.clientWidth;
-c.height = document.documentElement.clientHeight;
+c.width = document.documentElement.clientWidth - 10;
+c.height = document.documentElement.clientHeight - 10;
 this.view = new View(c, 25);
 this.view.initGame();
