@@ -1,4 +1,5 @@
-import simplegui
+# Prototype - http://www.codeskulptor.org/#user40_xR8oSP91ja_4.py
+import Tkinter
 import math
 import random
 
@@ -11,7 +12,6 @@ started = False
 # missile_speed = 8
 font_size = 25
 playerscale = 0.7
-friction_scale = 0.98
 result = ""
 
 # initialize player list and two sprite sets
@@ -67,15 +67,6 @@ water_image = simplegui.load_image("https://www.colourbox.com/preview/1297630-wa
 splash_info = ImageInfo([200, 150], [400, 300])
 splash_image = simplegui.load_image("http://commondatastorage.googleapis.com/codeskulptor-assets/lathrop/splash.png")
 
-# player image
-player_info = ImageInfo([45, 45], [90, 90], 35)
-player_thrust_info = ImageInfo([135, 45], [90, 90], 35)
-player_image = simplegui.load_image("https://fbcdn-sphotos-h-a.akamaihd.net/hphotos-ak-xpt1/v/t34.0-12/11774706_10153509316471660_768017570_n.jpg?oh=c3af29d78146812b95f2ba9ae7134823&oe=55B44727&__gda__=1437904140_342f1db1175515d46409a6e04683b6a2")
-
-wave_info = ImageInfo([45, 45], [90, 90], 35)
-wave_thrust_info = ImageInfo([45, 45], [90, 90], 35)
-wave_image = simplegui.load_image(r"https://openclipart.org/image/90px/svg_to_png/182008/Tiled%20Wave%20Pattern.png")
-
 # missile image - shot1.png, shot2.png, shot3.png
 # missile_info = ImageInfo([5,5], [10, 10], 3, 40)
 # missile_image = simplegui.load_image("http://commondatastorage.googleapis.com/codeskulptor-assets/lathrop/shot2.png")
@@ -92,7 +83,7 @@ wave_image = simplegui.load_image(r"https://openclipart.org/image/90px/svg_to_pn
 # soundtrack = simplegui.load_sound("http://commondatastorage.googleapis.com/codeskulptor-assets/sounddogs/soundtrack.mp3")
 # missile_sound = simplegui.load_sound("http://commondatastorage.googleapis.com/codeskulptor-assets/sounddogs/missile.mp3")
 # missile_sound.set_volume(.5)
-player_thrust_sound = simplegui.load_sound("http://commondatastorage.googleapis.com/codeskulptor-assets/sounddogs/thrust.mp3")
+surfer_thrust_sound = simplegui.load_sound("http://commondatastorage.googleapis.com/codeskulptor-assets/sounddogs/thrust.mp3")
 # explosion_sound = simplegui.load_sound("http://commondatastorage.googleapis.com/codeskulptor-assets/sounddogs/explosion.mp3")
 
 # helper functions to handle transformations
@@ -151,7 +142,7 @@ def group_group_collide(group, other_group):
 
 # Sprite class
 class Sprite:
-    def __init__(self, pos, vel, ang, ang_vel, image, info, sound = None, playsound = True, friction = False, scale = 1, owner = None):
+    def __init__(self, pos, vel, ang, ang_vel, image, info, sound = None, playsound = True, friction = 1.00, scale = 1, owner = None):
         self.pos = [pos[0],pos[1]]
         self.vel = [vel[0],vel[1]]
         self.info = info
@@ -178,6 +169,9 @@ class Sprite:
         self.forward = angle_to_vector(self.angle)
         self.tip = [self.pos[0] + (self.image_size[0] / 2 * self.forward[0] * self.scale),self.pos[1] + (self.image_size[0] / 2 * self.forward[1] * self.scale)]
         
+    def set_position(self, pos):
+        self.pos = pos
+
     def draw(self, canvas):
         if self.animated:
             animation_steps = self.image_size[0] * (self.age - 1)
@@ -211,9 +205,8 @@ class Sprite:
             self.vel[0] += self.forward[0] * math.log(10 + difficulty,10) / 5
             self.vel[1] += self.forward[1] * math.log(10 + difficulty,10) / 5
         
-        if self.friction:
-            self.vel[0] *= friction_scale
-            self.vel[1] *= friction_scale
+        self.vel[0] *= self.friction
+        self.vel[1] *= self.friction
         
         self.tip = [self.pos[0] + (self.image_size[0] / 2 * self.forward[0] * self.scale),self.pos[1] + (self.image_size[0] / 2 * self.forward[1] * self.scale)]
         
@@ -233,7 +226,7 @@ class Sprite:
     def collide(self, other_object):
         check_collide = dist(self.get_position(),other_object.get_position()) < (self.get_radius() + other_object.get_radius())
         # if check_collide:
-            # new_explosion = Sprite(other_object.pos, (0,0), 0, 0, explosion_image, explosion_info, explosion_sound, True, False, other_object.scale * math.sqrt(self.vel[0]**2 + self.vel[1]**2) / 2)
+            # new_explosion = Sprite(other_object.pos, (0,0), 0, 0, explosion_image, explosion_info, explosion_sound, True, scale=other_object.scale * math.sqrt(self.vel[0]**2 + self.vel[1]**2) / 2)
             # explosions.add(new_explosion)
         return check_collide
 
@@ -242,18 +235,19 @@ class Sprite:
     
 # Player class
 class Player(Sprite):
-    def __init__(self, pos, vel, angle, image, info, thrust_info,
+    def __init__(self, pos, vel, friction, angle, image, info, thrust_info, 
                 leftmap = "left", rightmap = "right", thrustmap = "up", 
-                jump_map = "space", thrustsound = player_thrust_sound):
-        Sprite.__init__(self, pos, vel, angle, 0, image, info, thrustsound, False, True, playerscale)
+                thrustsound = surfer_thrust_sound):
+        Sprite.__init__(self, pos, vel, angle, ang_vel=0, 
+                        image=image, info=info, sound=thrustsound, playsound=False, 
+                        friction=friction, scale=playerscale)
         self.no_thrust_info = info
         self.thrust_info = thrust_info
         self.score = 0
         self.lives = 3        
         self.keydownmapping = {simplegui.KEY_MAP[leftmap]: self.turn_left, 
                                simplegui.KEY_MAP[rightmap]: self.turn_right,
-                               simplegui.KEY_MAP[thrustmap]: self.thrust_on,
-                               simplegui.KEY_MAP[jump_map]: self.jump} 
+                               simplegui.KEY_MAP[thrustmap]: self.thrust_on} 
     
         self.keyupmapping = {simplegui.KEY_MAP[leftmap]: self.stop_turn, 
                              simplegui.KEY_MAP[rightmap]: self.stop_turn,
@@ -281,12 +275,46 @@ class Player(Sprite):
         self.image_center = self.info.get_center()
         self.image_size = self.info.get_size()
         self.sound.rewind()
-    
+
+class Surfer(Player):
+    def __init__(self, jump_map="space"):
+        surfer_info = ImageInfo([45, 45], [90, 90], 35)
+        surfer_thrust_info = ImageInfo([135, 45], [90, 90], 35)
+        surfer_image = simplegui.load_image("https://fbcdn-sphotos-h-a.akamaihd.net/hphotos-ak-xpt1/v/t34.0-12/11774706_10153509316471660_768017570_n.jpg?oh=c3af29d78146812b95f2ba9ae7134823&oe=55B44727&__gda__=1437904140_342f1db1175515d46409a6e04683b6a2")
+
+        super(Surfer, self).__init__(pos=[0, 0], #random_map_point(surfer_info.get_radius() * playerscale), 
+                        vel=[0, 0], 
+                        friction=0.98, 
+                        angle=0, 
+                        image=surfer_image,
+                        info=surfer_info,
+                        thrust_info=surfer_thrust_info)
+        self.keydownmapping[simplegui.KEY_MAP[jump_map]] = self.jump
+
     def jump(self):
-        pass
-        # new_missile = Sprite(self.tip, [self.vel[0] + self.forward[0]*missile_speed / math.log(1 + difficulty), self.vel[1] + self.forward[1]*missile_speed / math.log(1 + difficulty)], 0, 0, missile_image, missile_info, missile_sound, True, False, 1, self)
-        # missiles.add(new_missile)
-            
+            pass
+            # new_missile = Sprite(self.tip, [self.vel[0] + self.forward[0]*missile_speed / math.log(1 + difficulty), self.vel[1] + self.forward[1]*missile_speed / math.log(1 + difficulty)], 0, 0, missile_image, missile_info, missile_sound, True, False, 1, self)
+            # missiles.add(new_missile)
+
+class Wave(Player):
+    def __init__(self):
+        wave_info = ImageInfo([45, 45], [90, 90], 35)
+        wave_thrust_info = ImageInfo([45, 45], [90, 90], 35)
+        wave_image = simplegui.load_image("https://raw.githubusercontent.com/VehpuS/wave-game-jam/master/small_wave.png")
+
+        random_point = random_map_point(wave_info.get_radius() * playerscale)
+
+        super(Wave, self).__init__(pos=random_point, 
+                        vel=[0, 0],
+                        friction=0.98,
+                        angle=0,
+                        image=wave_image,
+                        info=wave_info,
+                        thrust_info=wave_thrust_info,
+                        leftmap="a",
+                        rightmap="d",
+                        thrustmap="w")
+
 def draw(canvas):
     global time, players, started, result # rocks, missiles, 
     
@@ -405,11 +433,8 @@ def start_handler(pos):
     if not started:
         # timer.start()
         # timer2.start()
-        player_1_player = Player(pos, [0, 0], 0, player_image, player_info, player_thrust_info)
-        players.append(player_1_player)
-
-        player_2_player = Player(random_map_point(wave_info.get_radius() * playerscale), [0, 0], 0, wave_image, wave_info, wave_thrust_info, "a", "d", "w", "s")
-        players.append(player_2_player)
+        players.append(Wave())
+        players.append(Surfer())
 
         started = True
         start_time = time
@@ -447,12 +472,14 @@ def bigger_size():
 #     if started:
 #         rock_limit = 7 * difficulty // 2
 #         scale = (random.randrange(5,11) * 1.01 ** difficulty) / 10
-#         new_rock = Sprite(random_map_point(asteroid_info.get_radius() * scale), [random_direction()[0] * difficulty, random_direction()[1] * difficulty], 0, random.random() * 0.1 - 0.05, asteroid_image, asteroid_info, None, True, False, scale)
+#         new_rock = Sprite(random_map_point(asteroid_info.get_radius() * scale), [random_direction()[0] * difficulty, random_direction()[1] * difficulty], 0, random.random() * 0.1 - 0.05, asteroid_image, asteroid_info, None, True, scale=scale)
 #         if len(rocks) < rock_limit // len(players):
 #             rocks.add(new_rock)
 
     
 # initialize frame
+top = Tkinter.Tk()
+
 frame = simplegui.create_frame("Asteroids", WIDTH, HEIGHT)
 
 # instruction_label1 = frame.add_label("You may add another player (controlled by wasd keys) by pressing p. (Strong computer recommended - it gets slow with time)")
@@ -472,3 +499,5 @@ frame.set_mouseclick_handler(start_handler)
 
 # get things rolling
 frame.start()
+
+top.mainloop()
