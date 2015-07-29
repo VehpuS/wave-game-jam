@@ -7,7 +7,12 @@ function dist(point1, point2) {
     return Math.sqrt(Math.pow((point1[0] - point2[0]), 2) + Math.pow((point1[1] - point2[1]), 2));
 }
 
-function randomDirection(){
+function vectorMagnitude(vector) {
+    return dist(vector, [0,0]);
+}
+
+
+function randomDirection() {
     return [Math.random(), Math.random()];
 }
 
@@ -48,11 +53,12 @@ Array.prototype.diff = function(array) {
 	    isCollide: function() {
 	    	return this.collide;
 		},
-
 	    getLifespan: function() {
 	        return this.lifespan;
 		},
-
+		getFramesNum: function() {
+			return this.framesNum;
+		},
 	    isAnimated: function() {
 	        return this.framesNum > 1;
 		},
@@ -61,9 +67,6 @@ Array.prototype.diff = function(array) {
     		img.src=this.url;
     		img.infoObject = this;
 			return img; 
-		},
-		getFramesNum: function() {
-			return this.framesNum;
 		}
 	};
 })();
@@ -71,12 +74,10 @@ Array.prototype.diff = function(array) {
 // Sprite Class
 (function() {
 	// Class definition with private attributes / methods
-	var _ = this.Sprite = function(x, y, dx, dy, angle, angularVelocity, imageInfo, sound, playsound, friction, scale, owner) {
+	var _ = this.Sprite = function(x, y, dx, dy, angle, angularVelocity, imageInfo, sound, playsound, friction, scale, owner, static) {
 		this.position = [x, y]; // copy
-        this.velocity = [dx, dy]; // copy
         this.imageInfo = imageInfo;
-        this.angle = angle;
-        this.angularVelocity = angularVelocity;
+
         this.scale = typeof scale !== 'undefined' ? scale : 1;
 
         this.age = 0;
@@ -89,12 +90,26 @@ Array.prototype.diff = function(array) {
             //     sound.play()
             }
         }
-                
-        this.friction = typeof friction !== 'undefined' ? friction : 1.00;
         this.owner = owner;
+        this.static = !!static;
 
+        if (this.static) {
+            this.velocity = [0, 0]; // copy
+            this.angle = 0;
+            this.angularVelocity = 0;
+            this.friction = 1;
+        }
+        else {
+            this.velocity = [dx, dy]; // copy
+            this.angle = angle;
+            this.angularVelocity = angularVelocity;
+            this.friction = typeof friction !== 'undefined' ? friction : 1.00;
+        }
+        
         this.accelerationFunctions = [];
         this.updateFunctions = [updateAngle, updateVelocity];
+        
+        
 	};
 
 	// Private Methods
@@ -123,15 +138,24 @@ Array.prototype.diff = function(array) {
 			this.position = [x, y];
 		},
 		setVelocity: function(dx, dy) {
+            if (this.static) {
+                return;
+            }
 			this.velocity = [dx, dy];
 		},
 		setScale: function(newScale) {
 			this.scale = newScale;
 		},
 		setAngle: function(newAngle) {
+            if (this.static) {
+                return;
+            }
 			this.angle = newAngle;
 		},
 		getForwardVector: function() {
+            if (this.static) {
+                return [0,0];
+            }
 			return angleToVector(this.angle + this.imageInfo.getRotation());
 		},
 		getPosition: function() {
@@ -169,7 +193,13 @@ Array.prototype.diff = function(array) {
 	    	++this.age;
 			return this.age > this.lifespan;
 		},
+        isStatic: function() {
+            return this.static;
+        },
 		update: function() {
+            if (this.static) {
+                return;
+            }
 			for (var i = 0; i < this.updateFunctions.length; ++i) {
 				this.updateFunctions[i](this);
 			}
@@ -181,7 +211,7 @@ Array.prototype.diff = function(array) {
 			var frameSize = this.imageInfo.getFrameSize();
 	        var frameCenter = this.imageInfo.getOriginFrameCenter();
     		var newFrameCenter = frameCenter;
-    		var framesNum = this.imageInfo.getFramesNum()
+//    		var framesNum = this.imageInfo.getFramesNum();
 
 	        if (this.imageInfo.isAnimated()) {
 	           	newFrameCenter = [frameCenter[0] + frameSize[0] * ((this.age - 1) % this.imageInfo.getFramesNum()),
@@ -192,7 +222,6 @@ Array.prototype.diff = function(array) {
 	        var destinationSize = [frameSize[0] * this.scale,  frameSize[1] * this.scale];
 
 	        var rotation = this.angle;
-	        var radius = this.getRadius();
 
 			// context.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh)
 
@@ -237,7 +266,7 @@ Array.prototype.diff = function(array) {
         this.baseScale = this.scale;
         this.speed = speed;
 
-        player = this;
+        var player = this;
         this.keyDownMapping = {};
         this.keyDownMapping[thrustOnMap] = player.thrustOn;
         this.keyDownMapping[turnRightMap] = player.turnRight;
@@ -302,50 +331,57 @@ Array.prototype.diff = function(array) {
 	_.prototype.createKeyDownListener = function() {
 		var player = this;
 		return function(e) {
-			key = e.keyIdentifier;
+			var key = e.keyIdentifier;
 			if (key in player.keyDownMapping) {
 				player.keyDownMapping[key](player);
 			}
-		}
+		};
 	};
 	_.prototype.createKeyUpListener = function() {
 		var player = this;
 		return function(e) {
-			key = e.keyIdentifier;
+			var key = e.keyIdentifier;
 			if (key in player.keyUpMapping) {
 				player.keyUpMapping[key](player);
 			}
-		}
+		};
 	};
-	_.prototype.collisionBump = function(collisionDirection, ratio) {
-		var oldVelocity = player.getVelocity();
+	_.prototype.collisionBump = function(collisionDirection, ratio, sprite) {
+        if (sprite.isStatic()) {
+            this.setVelocity(-oldVelocity[0], 
+                             -oldVelocity[1]);
+        }
+		var oldVelocity = this.getVelocity();
 		this.setVelocity((oldVelocity[0] + ratio * this.speed * collisionDirection[0]), 
 						 (oldVelocity[1] + ratio * this.speed * collisionDirection[1]));
-	}
+	};
 })();
 
 // Surfer Class
 (function() {
 	// Class definition with private attributes / methods
 	var _ = this.Surfer = function(position, scale) {
-		url = "./assets/images/PlayerSurfer.svg";
+		var url = "./assets/images/PlayerSurfer.svg";
 		
-		surferInfo = new ImageInfo(url, [0,0], [90, 90], true, - 90/360 * 2*Math.PI);
-        surferThrustInfo = new ImageInfo(url, [0,0], [90, 90], true, -90/360 * 2*Math.PI);
+		var surferInfo = new ImageInfo(url, [0,0], [90, 90], true, - 90/360 * 2*Math.PI);
+        var surferThrustInfo = new ImageInfo(url, [0,0], [90, 90], true, -90/360 * 2*Math.PI);
 
-        sound = thrustsound =  "Not Implemented";
+        var sound = "Not Implemented";
+        var thrustsound = "Not Implemented";
 
-        x = position[0];
-        y = position[1];
-        dx = dy = angle = 0;
+        var x = position[0];
+        var y = position[1];
+        var dx = 0;
+        var dy = 0;
+        var angle = 0;
 
-        friction = 0.9;
+        var friction = 0.9;
 
-        speed = 1.5;
+        var speed = 1.5;
 
 		Player.call(this, x, y, dx, dy, angle, surferInfo, surferThrustInfo, speed, friction, scale, sound, thrustsound, 'Up', 'Left', 'Right');
 
-		surfer = this;
+		var surfer = this;
 		this.keyDownMapping["U+0020"] = surfer.jump; // TODO: implement
 	};
 
@@ -366,27 +402,31 @@ Array.prototype.diff = function(array) {
 (function() {
 	// Class definition with private attributes / methods
 	var _ = this.Monster = function(position, scale) {
-		url = "./assets/images/PlayerMonster.svg";
+		var url = "./assets/images/PlayerMonster.svg";
 		
-		monsterInfo = new ImageInfo(url, [0,0], [270, 270], true, 90/360 * 2*Math.PI);
-        monsterThrustInfo = new ImageInfo(url, [0,0], [270, 270], true, 90/360 * 2*Math.PI);
+		var monsterInfo = new ImageInfo(url, [0,0], [270, 270], true, 90/360 * 2*Math.PI);
+        var monsterThrustInfo = new ImageInfo(url, [0,0], [270, 270], true, 90/360 * 2*Math.PI);
 
-        sound = thrustsound =  "Not Implemented";
+        var sound = "Not Implemented";
+        var thrustsound =  "Not Implemented";
 
-        x = position[0];
-        y = position[1];
-        dx = dy = angle = 0;
+        var x = position[0];
+        var y = position[1];
+        var dx = 0;
+        var dy = 0;
+        var angle = 0;
 
-        friction = 0.99;
+        var friction = 0.99;
 
-        speed = 0.4;
+        var speed = 0.4;
 
 		Player.call(this, x, y, dx, dy, angle, monsterInfo, monsterThrustInfo, speed, friction, scale, sound, thrustsound, 'U+0057', 'U+0041', 'U+0044');
 
-		monster = this;
+		var monster = this;
 		this.keyDownMapping["Shift"] = monster.eat; // TODO: implement
         
         this.updateScaleFunctions.push(velocityScale);
+        this.accelerationFunctions.push(dontStopAcceleration);
 	};
 
 	_.prototype = new Player;
@@ -397,6 +437,22 @@ Array.prototype.diff = function(array) {
         monster.setScale(monster.baseScale + vectorSize / 100);
     }
 	
+    function dontStopAcceleration(player) {
+		var velocity = player.getVelocity();
+		var dx = velocity[0];
+		var dy = velocity[1];
+		var forward = player.getForwardVector();
+        var dfx = forward[0];
+        var dfy = forward[1];
+
+        var ratio = (vectorMagnitude(forward) + 1) / (vectorMagnitude(velocity) + 1);
+        
+        dx += dfx * player.speed * ratio;
+        dy += dfy * player.speed * ratio;
+
+	    player.setVelocity(dx, dy);
+	}
+    
 	// Public methods
 	_.prototype.eat = function(monster) {
 		console.log(monster);
@@ -405,7 +461,7 @@ Array.prototype.diff = function(array) {
 })();
 
 // Game Logic
-(function() {
+(function(document) {
 	// Class definition with private attributes / methods
 	var _ = this.Game = function(gameCanvas, playerScale, FPS) {
 		this.started = false;
@@ -439,13 +495,13 @@ Array.prototype.diff = function(array) {
 	_.prototype = {
 		// collision handlers
 		collide: function(sprite1, sprite2) {
-			var distance = dist(sprite1.getPosition(), sprite2.getPosition())
+			var distance = dist(sprite1.getPosition(), sprite2.getPosition());
 			return distance < (sprite1.getRadius() + sprite2.getRadius());
 		},
 		checkCollisionsWithArray: function(array, checkedObject, removeFromArray) {
-		    removalArray = array([]);
+		    var removalArray = array([]);
 		    for (var i = 0; i < array.length ; ++i) {
-		    	member = array[i];
+		    	var member = array[i];
 		        if (member != checkedObject && this.collide(member, checkedObject)) {
 	                removalArray.add(member);
 		        }
@@ -458,7 +514,7 @@ Array.prototype.diff = function(array) {
 		    return removalArray.length;
 		},
 		checkCollisionsBetweenArrays: function(baseArray, otherArray) {
-		    removalArray = [];
+		    var removalArray = [];
 
 		    for (var i = 0; i < baseArray.length; ++i) {
 		    	var member = baseArray[i];
@@ -476,14 +532,14 @@ Array.prototype.diff = function(array) {
 
 			var oldPosition = sprite.getPosition();
 
-			x = (this.width + 2 * sprite.getRadius() + oldPosition[0] + sprite.getRadius() + dx) % (this.width + 2 * sprite.getRadius());
-	        y = (this.height + 2 * sprite.getRadius() + oldPosition[1] + sprite.getRadius() + dy) % (this.height + 2 * sprite.getRadius());
+			var x = (this.width + 2 * sprite.getRadius() + oldPosition[0] + sprite.getRadius() + dx) % (this.width + 2 * sprite.getRadius());
+	        var y = (this.height + 2 * sprite.getRadius() + oldPosition[1] + sprite.getRadius() + dy) % (this.height + 2 * sprite.getRadius());
 	        sprite.setPosition(x - sprite.getRadius(), y - sprite.getRadius());
 		},
 		randomMapPoint: function(radius) {
 		    // Return a random point not colliding with another player or object
-		    randomPoint = [Math.random() * this.width, Math.random() * this.height];
-		    draw = true;
+		    var randomPoint = [Math.random() * this.width, Math.random() * this.height];
+		    var draw = true;
 
 		    for (var i = 0; i < this.players.length; ++i) {
     			var player = this.players[i];
@@ -514,7 +570,6 @@ Array.prototype.diff = function(array) {
 		},
 		assignKeyUpEventListeners: function() {
 			var game = this;
-			var game = this;
 
 			for (var i = 0; i < game.players.length; ++i) {
         		var player = game.players[i];
@@ -540,9 +595,12 @@ Array.prototype.diff = function(array) {
 		drawAll: function() {
 			this.gameCanvas.getContext('2d').clearRect(0, 0, this.width, this.height);
 
+            var player;
+            var i;
+            
 			if (!this.started) {
-		    	splashImageURL = "http://commondatastorage.googleapis.com/codeskulptor-assets/lathrop/splash.png";
-		    	splashInfo = new ImageInfo(splashImageURL, [0, 0], [400, 300]);
+		    	var splashImageURL = "http://commondatastorage.googleapis.com/codeskulptor-assets/lathrop/splash.png";
+		    	var splashInfo = new ImageInfo(splashImageURL, [0, 0], [400, 300]);
 
 				// context.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh)
 
@@ -558,15 +616,15 @@ Array.prototype.diff = function(array) {
 
 		        this.gameCanvas.drawImage(splashInfo.url, 0, 0, 400, 300, 0, 0, this.width, this.height);
 
-		        for (var i = 0; i < this.players.length; ++i) {
-    				var player = this.players[i];
+		        for (i = 0; i < this.players.length; ++i) {
+    				player = this.players[i];
 			        //         player.sound.pause()
 		        }
 		        // canvas.draw_text(result, (5, HEIGHT * 0.05), font_size - 2, "White", "monospace")
 		    } else {
 		    	// draw and the player and sprites
-		        for (var i = 0; i < this.players.length; ++i) {
-    				var player = this.players[i];
+		        for (i = 0; i < this.players.length; ++i) {
+    				player = this.players[i];
 		            player.draw(this.gameCanvas);
 		            // // check to see if any player lost
 
@@ -643,27 +701,27 @@ Array.prototype.diff = function(array) {
 		                    if (this.collide(player, other_player)) {
 		                    	var ratio = other_player.getRadius() / player.getRadius();
                                 
-		                    	player.collisionBump(other_player.getForwardVector(), ratio);
+		                    	player.collisionBump(other_player.getForwardVector(), ratio, other_player);
 		                        // player.score -= 1
 		                    }
 		                }
 		            }
 
 		        // // check to see if any player lost
-					if (player.lives == 0) {
+					if (player.lives === 0) {
 		                this.started = false;
 					}
 		        }
-
-				if (!this.started) {
-					for (var i = 0; i < this.players.length; ++i) {
-    					var player = this.players[i];
-		        		// this.result += "Player " + str(player + 1) + " scored " + str(players[player].score) + " points! "
-		        	}
-		        	// timer.stop()
-		            // timer2.stop()
-		        }
 		    }
+            
+            if (!this.started) {
+                for (var k = 0; k < this.players.length; ++k) {
+                    var player = this.players[k];
+                    // this.result += "Player " + str(player + 1) + " scored " + str(players[player].score) + " points! "
+                }
+                // timer.stop()
+                // timer2.stop()
+            }
 		},
 	    reset: function() {
 	    	this.players = [];
@@ -672,8 +730,8 @@ Array.prototype.diff = function(array) {
 	        // soundtrack.pause()
 	        // soundtrack.rewind()
 	    }
-	}
-})();
+	};
+})(document);
 
 // View logic - recieves the HTML object and grid dimentions and draws the game board.
 (function() {
@@ -693,7 +751,7 @@ Array.prototype.diff = function(array) {
 			this.game.init(1);
 			// should show splash screen
 		}
-	}
+	};
 })();
 
 var c = document.getElementById("gameCanvas");
