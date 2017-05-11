@@ -789,8 +789,8 @@ window.addEventListener("load", function() {
             },
             init: function(difficulty) {
                 let game = this;
-                new Surfer(game, this.randomMapPoint(), this.playerScale);
-                new Monster(game, this.randomMapPoint(), this.playerScale / 2);
+                new Surfer(game, this.randomMapPoint(), this.playerScale * 1.4);
+                new Monster(game, this.randomMapPoint(), this.playerScale / 1.2);
 
                 game.started = true;
                 game.startTime = game.time;
@@ -911,7 +911,7 @@ window.addEventListener("load", function() {
         // Public methods
         View.prototype = {
             initGame: function() {
-                this.game = new Game(this.gameCanvas, 0.3, 1, 30);
+                this.game = new Game(this.gameCanvas, 0.3, 1, 60);
                 this.game.init(1);
                 // TODO: should show splash screen
             }
